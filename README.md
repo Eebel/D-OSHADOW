@@ -1,5 +1,7 @@
 # D-OSHADOW
-SHADOW Control System for Mr. Baddeley's D-O version2.  This is an ALPHA release.  Do not use as your droid could run away and hit things.  This project is in progress and is being posted in the hopes others will contribute.
+SHADOW Control System for Mr. Baddeley's D-O version2.  This is an ALPHA release.  
+Do not use as your droid could run away and hit things.  T
+his project is in progress and is being posted in the hopes others will contribute.
 
 Here is the current hardware
 //  - Arduino Mega 2560
