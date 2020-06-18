@@ -1,6 +1,9 @@
 # D-OSHADOW
 SHADOW Control System for Mr. Baddeley's D-O version2.  This is an ALPHA release.  
 Do not use as your droid could run away and hit things.  
+
+There needs some EMI shielding on the motor wires.  The signals generated at some speeds of the motors can actually jam the Bluetooth signal. I am working on a solution.  Stay tuned.
+
 This project is in progress and is being posted in the hopes others will contribute.
 You will need the ServoEasing library.  It is available in the Arduino Library Manager.
 You will have to edit the .h file in the ServoEasing Library to enable the PCA9685 expander.
