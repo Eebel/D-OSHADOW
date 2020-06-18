@@ -33,13 +33,14 @@
 //   PS3 Bluetooth library - developed by Kristian Lauszus (kristianl@tkjelectronics.com)
 //   For more information visit my blog: http://blog.tkjelectronics.dk/ or
 //
-//  - Arduino Mega 2560
-//  - Arduino USB Shield
+//  - Arduino Mega 2560 rev3
+//  - USB Host Shield
+//  - USB Class I Bluetooth Dongle
 //  - Cytron MDD10A Motor driver
 //  - DFPlayer Mini
-//  - 6050 IMU (Inertial Measurement Unit)
+//  - MPU6050 IMU (Inertial Measurement Unit)
 //  - Pololu 20.4:1 HP 12V 25mm DC Motors (No encoder)
-//  - PWM 9685 Servo Expander
+//  - PCA 9685 Servo Expander
 //  - HiTech HS-645MG (MainArmServo)
 //  - HiTech HS-85MG  (HeadNodServo)
 //  - HiTech HS-65HB  (HeadTiltServo
@@ -63,6 +64,7 @@
 #define LOG_INPUT
 
 
+//#define PCA9685  //uncomment if using PCA9685
 
 // Satisfy IDE, which only needs to see the include statment in the ino.
 #ifdef dobogusinclude
@@ -169,11 +171,16 @@ bool Battery_LED = false;             //Low Battery LED
 
 //******Servo Pins************************************************************
 const int pinArmServo = 46;   //Arm Angle is driven from 2560 due to location in the body
+#ifdef PCA9685
 //------Rest of the servos are in the head and on the PCA 9685 Expander------
-const int pinTiltServo = 5;     //Tilt Side-To-Side
-const int pinNeckTurn = 6;   //Turn Neck
-const int pinHeadNod = 7;   //Nod Up-And-Down
-
+  const int pinTiltServo = 5;     //Tilt Side-To-Side
+  const int pinNeckTurn = 6;   //Turn Neck
+  const int pinHeadNod = 7;   //Nod Up-And-Down
+#else
+  const int pinTiltServo = 44;     //Tilt Side-To-Side
+  const int pinNeckTurn = 45;   //Turn Neck
+  const int pinHeadNod = 47;   //Nod Up-And-Down
+#endif
 
 
 //******GLOBAL CLASS INSTANCE DECLARATIONS******************************
@@ -188,9 +195,15 @@ PS3BT *PS3Nav=new PS3BT(&Btd);// This will just create the instance
 DFRobotDFPlayerMini myDFPlayer;
 //******END GLOBAL CLASS INSTANCE DECLARATIONS**************************
 
-ServoEasing HeadTiltServo(PCA9685_DEFAULT_ADDRESS, &Wire);
-ServoEasing NeckTurnServo(PCA9685_DEFAULT_ADDRESS, &Wire);
-ServoEasing HeadNodServo(PCA9685_DEFAULT_ADDRESS, &Wire);
+#ifdef PCA9685
+  ServoEasing HeadTiltServo(PCA9685_DEFAULT_ADDRESS, &Wire);
+  ServoEasing NeckTurnServo(PCA9685_DEFAULT_ADDRESS, &Wire);
+  ServoEasing HeadNodServo(PCA9685_DEFAULT_ADDRESS, &Wire);
+#else
+  ServoEasing HeadTiltServo;
+  ServoEasing NeckTurnServo;
+  ServoEasing HeadNodServo;
+#endif
 ServoEasing ArmServo; //Not going to the PCA9685
 
 struct ServoControlStruct {
@@ -228,6 +241,9 @@ uint8_t fifoBuffer[64]; // FIFO storage buffer
 
 
 void setup() {
+  
+  Serial.begin(115200);
+  while (!Serial); // Wait for serial port to connect - used on Leonardo, Teensy and other boards with built-in USB CDC serial connection
     //******DF MINIPLAYER SETUP*******************************
     Serial1.begin(9600);//DFMiniPlayer Card
     Serial.println();
@@ -246,9 +262,7 @@ void setup() {
   myDFPlayer.volume(soundVolume);  //Set volume value. From 0 to 30
   myDFPlayer.play(1);  //Play the first sound
   
-  Serial.begin(115200);
-  while (!Serial); // Wait for serial port to connect - used on Leonardo, Teensy and other boards with built-in USB CDC serial connection
-  
+
   setupServos(); 
   setupMPU();  
   setupMotors();
@@ -289,7 +303,7 @@ void loop() {
 
     if(HeadMode==false){
       if(T1==true) {
-        if (joystick=0){
+        if (joystick==0){
           tNewArmPosition = ArmServoControl.center;//Servo Ease to this location
         }else{
           tNewArmPosition = ArmServoControl.center + (compAngleX*0.6);
@@ -301,9 +315,9 @@ void loop() {
       }
     }
     
-    if(compAngleX>3){tNewVertical = HeadNodServoControl.center - max(compAngleX, 10);}
+    if(compAngleX>3){tNewVertical = HeadNodServoControl.center - max(compAngleX, 15);}
     if(compAngleX<-3){
-      tNewVertical = HeadNodServoControl.center + max(compAngleX, 10);
+      tNewVertical = HeadNodServoControl.center + max(compAngleX, 15);
     }else{
       tNewVertical - HeadNodServoControl.center;
     }
@@ -378,14 +392,14 @@ void setupServos(){
     ArmServoControl.minDegree = 70;
     ArmServoControl.maxDegree = 130;
     ArmServoControl.center = armCenter;
-    NeckTurnServoControl.minDegree = 10;   //86-90 
-    NeckTurnServoControl.maxDegree = 170;  //86+90
+    NeckTurnServoControl.minDegree = 10;   
+    NeckTurnServoControl.maxDegree = 170;  
     NeckTurnServoControl.center = neckCenter;
-    HeadNodServoControl.minDegree = 50;     //90-35
-    HeadNodServoControl.maxDegree = 140;   //90+35
+    HeadNodServoControl.minDegree = 50;     
+    HeadNodServoControl.maxDegree = 140;   
     HeadNodServoControl.center = nodCenter;
-    HeadTiltServoControl.minDegree = 35;  //90-65
-    HeadTiltServoControl.maxDegree = 155; //90+65
+    HeadTiltServoControl.minDegree = 35;  
+    HeadTiltServoControl.maxDegree = 155; 
     HeadTiltServoControl.center = tiltCenter;
 
 
@@ -613,7 +627,7 @@ void ReadPS3Controller()
       // ---------------------------------------------------------------------
       if(X_Axis==0){ X_Axis=1; }
   
-      // Control de giro de la cabeza
+      
       if(X_Axis>(127+deadZone)){
         tNewHorizontal = NeckTurnServoControl.maxDegree;
       }else if ( X_Axis<(127-deadZone)){
@@ -962,10 +976,6 @@ if (motorspeed1>-motorDeadZone && motorspeed1<motorDeadZone){
   motorspeed2=0;
 }
 
-if (motorspeed1 == 0 || motorspeed2 ==0){
-  motorspeed1 = 0;
-  motorspeed2 = 0;
-}
 
 if (motorspeed2<0) {
   motordirection2 = LOW;
@@ -982,6 +992,11 @@ if (motorspeed1 >254){
 
 if (motorspeed2 >254){
   motorspeed2=255;
+}
+
+if (motorspeed1 == 0 || motorspeed2 ==0){
+  motorspeed1 = 0;
+  motorspeed2 = 0;
 }
 
 //Serial.print (motorspeed1);
